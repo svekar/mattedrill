@@ -1,0 +1,17 @@
+name: Linting
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   #v6.02
+
+      - name: Run shellcheck
+        run: shellcheck *.sh
+
+      - name: Check formatting
+        run: shfmt -d .
