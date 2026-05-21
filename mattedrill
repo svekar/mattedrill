@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+
+# TODO:
+# Avoid drawing the same question multiple times?
+# 
+
+set -eu
+set -o noglob
+
+lower=0
+upper=6
+operators=("+" "-" "*" "/")
+count=10
+CHECK_MARK="\xE2\x9C\x94"
+CROSS="\xe2\x9d\x8c"
+skip_fractional_division="true"
+
+number=0
+correct_count=0
+wrong_count=0
+
+function usage() {
+    echo "Usage: $0 [--lower=N] [--upper=N] [--operators=\"+ - * /\"] [--skip-fractional-division] [--help]"
+    echo "  --lower=N                 Set the lower bound for numbers (default: 0)"
+    echo "  --upper=N                 Set the upper bound for numbers (default: 6)"
+    echo "  --operators=\"+ - * /\"     Set the operators to use (default: \"+ - * /\")"
+    echo "  --skip-fractional-division Skip division problems that result in fractional answers (default: true)"
+}
+
+function parse_arguments() {
+    for arg in "$@"
+    do
+        case $arg in
+            --lower=*)
+                lower="${arg#*=}"
+                ;;
+            --upper=*)
+                upper="${arg#*=}"
+                ;;
+            --operators=*)
+                operators=(${arg#*=})
+                ;;
+            --count=*)
+                count="${arg#*=}"
+                ;;
+            --skip-fractional-division)
+                skip_fractional_division="${arg#*=}"
+                ;;
+            --help)
+                usage
+                exit 0
+                ;;
+            *)
+                echo "Unknown argument: $arg"
+                exit 1
+                ;;
+        esac
+    done
+}
+
+function print_summary() {
+    local number=$1
+    local rights=$2
+    local wrongs=$3
+    printf "Antall oppgaver: %d, riktige: %d (%.2f %%), gale %d (%.2f %%)\n" \
+        $number $rights $((rights * 100 / number)) \
+        $wrongs $((wrongs * 100 / number))
+}
+
+function ctrl_c() {
+    echo "Avbrutt av Ctrl-C. Sammendrag: "
+    number=$((number - 1))
+    print_summary $number $correct_count $wrong_count
+    exit 0
+}
+
+function ask_and_evaluate() {
+	local a=$1
+	local op=$2
+	local b=$3
+    local number=$4
+    facit=$(( a $op b ))
+    printf "Oppgave $number: $a $op $b = "
+    tput sc
+    read answer
+    tput rc
+    if [[ $answer == $facit ]]; then
+        emoji="${CHECK_MARK}"
+        correct_count=$((correct_count + 1))
+    else
+        emoji="${CROSS} ($facit)"
+        wrong_count=$((wrong_count + 1))
+    fi
+    printf "\033[1A${answer} ${emoji}\n"
+}
+
+trap ctrl_c SIGINT
+parse_arguments "$@"
+
+while (( $number < $count ))
+do
+  a=$(( (RANDOM % (upper - lower + 1)) + lower ))
+  _op_idx=$(( (RANDOM % ${#operators[@]}) ))
+  op="${operators[$_op_idx]}"
+  if [[ $op == "/" && $lower == 0 ]]; then
+    non_zero_lower=1
+  else
+    non_zero_lower=$lower
+  fi
+  b=$(( (RANDOM % (upper - non_zero_lower + 1)) + non_zero_lower ))
+  if [[ $skip_fractional_division &&
+        ${op} == "/" && $((a % b)) != 0 ]]; then
+        continue
+  fi
+  number=$((number + 1))
+  ask_and_evaluate $a $op $b $number
+done
+
+print_summary $number $correct_count $wrong_count
