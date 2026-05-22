@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   #v6.02
 
       - name: Run shellcheck
-        run: shellcheck *.sh
+        run: shellcheck mattedrill
 
       - name: Check formatting
         run: shfmt -d .
